@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Web.Http;
 using Dapper;
 using OurFirstApi.Models;
+using OurFirstApi.DataAccess;
 
 namespace OurFirstApi.Controllers
 {
@@ -17,124 +18,100 @@ namespace OurFirstApi.Controllers
         //api/employees
         public HttpResponseMessage Get()
         {
-            using (var connection =
-                new SqlConnection(ConfigurationManager.ConnectionStrings["Chinook"].ConnectionString))
+            try
             {
-                try
-                {
-                    connection.Open();
+                var employeeData = new EmployeeDataAccess();
+                var employees = employeeData.GetAll();
 
-                    var result = connection.Query<EmployeeListResult>("select * " +
-                                                                      "from Employee");
-
-
-                    return Request.CreateResponse(HttpStatusCode.OK, result);
-                }
-                catch (Exception ex)
-                {
-                   
-                    return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Query blew up");
-                }
+                return Request.CreateResponse(HttpStatusCode.OK, employees);
+            }
+            catch (Exception)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Query blew up");
             }
         }
 
-        //api/employees/3000
+
+
+        //api/employees/id
         public HttpResponseMessage Get(int id)
         {
-            using (var connection =
-                new SqlConnection(ConfigurationManager.ConnectionStrings["Chinook"].ConnectionString))
+            try
             {
-                try
+                var employeeData = new EmployeeDataAccess();
+                var employee = employeeData.Get(id);
+
+                if (employee == null)
                 {
-                    connection.Open();
-
-                    var result =
-                        connection.Query<EmployeeListResult>("Select * From Employee where EmployeeId = @id",
-                            new { id = id }).FirstOrDefault();
-
-                    if (result == null)
-                    {
-                        return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"Employee with the Id {id} was not found");
-                    }
-
-                    return Request.CreateResponse(HttpStatusCode.OK, result);
+                    return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"Employee with the Id {id} was not found");
                 }
-                catch (Exception ex)
-                {
-                    return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
-                }
+
+                return Request.CreateResponse(HttpStatusCode.OK, employee);
+            }
+            catch (Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
             }
         }
 
         //PUT api/employees/5
         public HttpResponseMessage Put(int id, EmployeeListResult employee)
         {
-            using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Chinook"].ConnectionString))
+            try
             {
-                try
-                {
-                    var rowsAffected = connection.Execute($@"Update Employee
-                                                                set FirstName = @firstName,
-                                                                    LastName = @lastName
-                                                             Where EmployeeId = @employeeId",
+                var employeeData = new EmployeeDataAccess();
+                var rowsAffected = employeeData.Put(id, employee);
 
-                        new { firstName = employee.FirstName, lastName = employee.LastName, employeeId = id });
-                                       
-                }
-                catch (Exception ex)
+                if (rowsAffected == 0)
                 {
-                        return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
+                    return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"Employee with the Id {id} was not found");
                 }
+
+                return Request.CreateResponse(HttpStatusCode.OK, $"Rows updated {rowsAffected}");
+            }
+            catch (Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
             }
 
-            return Request.CreateResponse(HttpStatusCode.Accepted);
         }
 
         // POST api/values
         public HttpResponseMessage Post(EmployeeListResult employee)
         {
-            using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Chinook"].ConnectionString))
+            
+            try
             {
-                try
-                {
-                    connection.Open();
-
-                    var rowsAffected = connection.Execute("Insert into Employee(FirstName, LastName) " +
-                                                          "Values(@FirstName, @LastName)",
-                        new { FirstName = employee.FirstName, LastName = employee.LastName });
-
-                }
-
-                catch (Exception ex)
-                {
-                    return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
-
-                }
-
-
-                return Request.CreateResponse(HttpStatusCode.Created);
+                var employeeAdd = new EmployeeDataAccess();
+                var rowsAdd = employeeAdd.Post(employee);
             }
+
+            catch (Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
+
+            }
+
+
+             return Request.CreateResponse(HttpStatusCode.Created);
         }
 
         // DELETE api/values/5
         public HttpResponseMessage Delete(int id)
         {
-            using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Chinook"].ConnectionString))
+           
+            try
             {
-                //connection.Open();
-                var sqlDelete = $@"Delete From Employee where EmployeeId = @EmployeeId";
-
-                try
-                {
-                    var affectedRows = connection.Execute(sqlDelete, new { EmployeeId = id });
-                    return Request.CreateResponse(HttpStatusCode.OK);
-                }
-                catch (Exception ex)
-                {
-                    return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
-
-                }
+                var employee = new EmployeeDataAccess();
+                var rowDelete = employee.Delete(id);
+                return Request.CreateResponse(HttpStatusCode.OK,$"Row deleted {rowDelete}");
             }
+            catch (Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
+
+            }
+            
         }
     }
 }
